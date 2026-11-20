@@ -256,6 +256,10 @@ metadata:
   # Check MetalLB controller is running
 timeout --foreground -v -s SIGHUP -k ${TIMEOUT} ${TIMEOUT} bash -c 'until oc get pods -n metallb-system --no-headers | grep controller | grep "Running"; do sleep 5; done && echo "The MetalLB controller is running."'
 
+  #Waiting for MetalLB speaker daemonset to be ready
+timeout --foreground -v -s SIGHUP -k ${TIMEOUT} ${TIMEOUT} bash -c '
+  until d=$(oc get ds speaker -n metallb-system -o jsonpath="{.status.desiredNumberScheduled} {.status.numberReady}" 2>/dev/null) && [[ -n "${d%% *}" && "${d%% *}" != "0" && "${d%% *}" == "${d#* }" ]]; do sleep 5; done'
+
   # Get Nodes Internal IP by using: oc get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}'
   #NODE_IPS=$(oc get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}' | tr ' ' ',')
 

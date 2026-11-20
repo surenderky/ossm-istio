@@ -199,6 +199,11 @@ if [[ "${TOPOLOGY}" != "SINGLE_CLUSTER" ]]; then
   export INTEGRATION_TEST_KUBECONFIG=NONE
 fi
 
+# MetalLB is true for IBM
+if [ "${IBM}" == "true" ]; then
+INSTALL_METALLB="true"
+fi
+
 # Install MetalLB if the flag is set
 if [ "${INSTALL_METALLB}" == "true" ]; then
     echo "Installing MetalLB"

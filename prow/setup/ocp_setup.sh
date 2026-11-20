@@ -274,7 +274,7 @@ timeout --foreground -v -s SIGHUP -k ${TIMEOUT} ${TIMEOUT} bash -c '
   subnet=$(oc get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' | awk -F. '{print $1"."$2"."$3}')
   ip_range="${subnet}.150-${subnet}.245"
 
-  echo '
+  echo "
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
@@ -282,7 +282,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-    - ${ip_range}' | oc apply -f -
+    - ${ip_range}" | oc apply -f -
 
   # Iterate over the IPs to create address pool entries
   #for ip in "${array[@]}"; do

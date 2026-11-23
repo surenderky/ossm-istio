@@ -271,8 +271,8 @@ metadata:
   name: default
   namespace: metallb-system
 spec:
-  addresses:'
-    - ${ip_range}' | oc apply -f -
+  addresses:
+    - ${ip_range}" | oc apply -f -
 
   # Check the IP address pool is created
   timeout --foreground -v -s SIGHUP -k ${TIMEOUT} ${TIMEOUT} bash -c 'until oc get IPAddressPool default -n metallb-system; do sleep 5; done && echo "The IP address pool has been created."'

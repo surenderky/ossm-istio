@@ -218,6 +218,15 @@ kind: Namespace
 metadata:
   name: metallb-system' | oc apply -f -
 
+  # Create OperatorGroup for MetalLB
+  echo '
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: metallb-operator-group
+  namespace: metallb-system
+spec: {}' |  oc apply -f -
+
   # Create Subscription for MetalLB
   echo '
 apiVersion: operators.coreos.com/v1alpha1
@@ -247,14 +256,15 @@ metadata:
   # Check MetalLB controller is running
 timeout --foreground -v -s SIGHUP -k ${TIMEOUT} ${TIMEOUT} bash -c 'until oc get pods -n metallb-system --no-headers | grep controller | grep "Running"; do sleep 5; done && echo "The MetalLB controller is running."'
 
-  # Get Nodes Internal IP by using: oc get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}'
-  NODE_IPS=$(oc get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}' | tr ' ' ',')
+  #Waiting for MetalLB speaker daemonset to be ready
+timeout --foreground -v -s SIGHUP -k ${TIMEOUT} ${TIMEOUT} bash -c '
+  until d=$(oc get ds speaker -n metallb-system -o jsonpath="{.status.desiredNumberScheduled} {.status.numberReady}" 2>/dev/null) && [[ -n "${d%% *}" && "${d%% *}" != "0" && "${d%% *}" == "${d#* }" ]]; do sleep 5; done'
 
-  # Split The IPs by , to create the IP address pool
-  IFS=',' read -r -a array <<< "${NODE_IPS}"
+  # Setting up IPAddressPool
+  subnet=$(oc get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' | awk -F. '{print $1"."$2"."$3}')
+  ip_range="${subnet}.150-${subnet}.245"
 
-  # Iterate over the Create IPS to create address pool
-  IP_POOL_YAML='
+  echo "
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
@@ -262,15 +272,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:'
-
-  # Iterate over the IPs to create address pool entries
-  for ip in "${array[@]}"; do
-    IP_POOL_YAML+=$'\n  - '"${ip}-${ip}"
-  done
-  echo "IP Pool YAML: ${IP_POOL_YAML}"
-
-  # Apply the IP address pool
-  echo "${IP_POOL_YAML}" | oc apply -f -
+    - ${ip_range}' | oc apply -f -
 
   # Check the IP address pool is created
   timeout --foreground -v -s SIGHUP -k ${TIMEOUT} ${TIMEOUT} bash -c 'until oc get IPAddressPool default -n metallb-system; do sleep 5; done && echo "The IP address pool has been created."'
